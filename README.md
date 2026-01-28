@@ -1,137 +1,103 @@
-# Shadow-OSINT
+# ShadowStrike
 
-Advanced OSINT reconnaissance and attack surface analysis tool. Shadow-OSINT combines passive intelligence gathering with optional active scanning capabilities, then uses a sophisticated AI analysis system (Mixture of Agents + GraphRAG) to produce comprehensive security assessments.
+**AI-Powered Active Reconnaissance and Penetration Testing Framework**
 
-**Dual-mode operation:**
-- **Passive mode** — Collects data from public sources: Certificate Transparency logs, DNS records, WHOIS databases, Shodan's InternetDB, and other APIs (no direct interaction with target)
-- **Active mode** — Integrates 10 professional security scanners (nmap, nuclei, nikto, etc.) for deep vulnerability assessment when authorized
+ShadowStrike is an offensive security tool designed for professional penetration testers and red team operators. It combines aggressive active scanning with AI-driven vulnerability analysis (Mixture of Agents + GraphRAG) to identify, prioritize, and exploit attack surfaces.
+
+**⚠️ CRITICAL WARNING: Active reconnaissance directly interacts with target systems. This tool is for AUTHORIZED penetration testing only. Unauthorized use is illegal and may result in criminal prosecution.**
+
+---
+
+## Philosophy
+
+Unlike passive OSINT tools, ShadowStrike is built **offense-first**:
+- **Active scanning by default** — Direct interaction with targets to discover vulnerabilities
+- **Exploitation-focused** — AI prioritizes findings by exploitability, not just severity
+- **Attack path mapping** — Automated discovery of multi-hop compromise routes
+- **Red team ready** — Stealth modes, evasion techniques, and export to Metasploit
+
+Passive intelligence gathering is available as an optional **recon supplement** for target enumeration, but the core value is in active vulnerability assessment.
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
-- [Architecture](#architecture)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Supported Inputs](#supported-inputs)
-- [Data Sources](#data-sources)
 - [Active Scanners](#active-scanners)
-- [Project Structure](#project-structure)
-- [Workflow Pipeline](#workflow-pipeline)
-- [Graph Model](#graph-model)
-- [GraphRAG: Graph-Enhanced Context Extraction](#graphrag-graph-enhanced-context-extraction)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
 - [AI Analysis](#ai-analysis)
-- [Export Formats](#export-formats)
-- [Cache System](#cache-system)
-- [Testing](#testing)
+- [GraphRAG Attack Path Analysis](#graphrag-attack-path-analysis)
 - [Usage Scenarios](#usage-scenarios)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
+- [Scan Profiles](#scan-profiles)
+- [Export & Integration](#export--integration)
+- [Legal & Ethics](#legal--ethics)
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
-- [License](#license)
 
 ---
 
 ## Features
 
-### Data Collection
-- **Multi-target support** — accepts domains, IPv4/IPv6 addresses, and CIDR ranges (up to /24)
-- **7 passive collectors** — crt.sh, DNS, WHOIS, HackerTarget, Shodan, VirusTotal, ipinfo.io
-- **10 active scanners** — nmap, nuclei, nikto, gobuster, whatweb, wafw00f, sslscan, dnsrecon, ffuf, wpscan
-- **Scan intensity profiles** — Quick, Standard, Aggressive (configurable timeouts, wordlists, flags)
-- **Auto tool detection** — automatic detection of installed security tools with version extraction
+### 🎯 Active Exploitation
+- **10+ integrated scanners** — nmap, nuclei, nikto, gobuster, whatweb, wafw00f, sslscan, dnsrecon, ffuf, wpscan
+- **Automatic service enumeration** — Ports, versions, OS fingerprinting, web technologies
+- **Vulnerability discovery** — CVE detection, misconfigurations, weak ciphers, exposed admin panels
+- **Web attack surface mapping** — Directory brute-forcing, parameter fuzzing, WAF detection
+- **WordPress/CMS targeting** — Plugin enumeration, known exploits, user discovery
 
-### AI Analysis
-- **Mixture of Agents (MoA)** — multi-LLM architecture with propose/aggregate/reflect pattern
-- **Multi-provider support** — Groq, OpenAI, Anthropic with unified interface
-- **GraphRAG integration** — extracts structured context from knowledge graph for enhanced LLM reasoning
-- **Graph analytics** — hub detection, attack path identification, community clustering, orphan detection
-- **Structured output** — guaranteed schema conformance via instructor + Pydantic v2
+### 🤖 AI-Powered Analysis
+- **Mixture of Agents (MoA)** — Multi-LLM consensus for reduced false positives
+- **Exploit prioritization** — Ranks findings by exploitability, impact, and ease of weaponization
+- **Attack scenario generation** — AI suggests exploitation sequences and pivot paths
+- **GraphRAG integration** — Extracts attack graphs, hub identification, lateral movement routes
+- **Multi-provider support** — Groq (Llama 3.3 70B), OpenAI (GPT-4), Anthropic (Claude)
 
-### Orchestration & Visualization
-- **LangGraph workflow** — stateful pipeline with conditional routing and parallel execution
-- **Interactive graph** — force-directed network visualization with typed nodes and relations
-- **Dual export** — Markdown and PDF report generation with risk scoring
-- **Local cache** — JSON file cache with configurable TTL to avoid redundant API calls
-- **Resilient execution** — collector/scanner failures are isolated and never crash the pipeline
+### 🕸️ Attack Graph Intelligence
+- **NetworkX-based knowledge graph** — Nodes: Domains, IPs, Ports, Services, Vulnerabilities
+- **Attack path enumeration** — Chains: `Subdomain → IP → Port → CVE → Exploit`
+- **Critical node detection** — Identifies high-value targets (domain controllers, databases, admin interfaces)
+- **Lateral movement suggestions** — Discovers internal network pivot opportunities
+- **Shared vulnerability mapping** — Finds systemic weaknesses across infrastructure
+
+### 🛠️ Pentest Workflow
+- **Phased execution** — Sequential scanner dependencies (nmap first, then web scanners)
+- **Concurrent scanning** — Parallel execution of independent tools
+- **Intensity profiles** — Quick (5min), Standard (10min), Aggressive (20min+)
+- **Tool auto-detection** — Graceful fallback if scanners are missing
+- **Resilient pipeline** — Individual scanner failures don't crash the entire workflow
+
+### 📊 Reporting & Export
+- **Markdown reports** — Full technical details for documentation
+- **PDF exports** — Executive summaries with risk scoring
+- **Interactive graph visualization** — Force-directed network graphs
+- **JSON output** — Structured data for CI/CD and SIEM integration
 
 ---
 
-## Architecture
+## Active Scanners
 
-```
-                          +------------------+
-                          |   Streamlit UI   |
-                          |     (app.py)     |
-                          +--------+---------+
-                                   |
-                          +--------v---------+
-                          |  LangGraph Flow  |
-                          |  (workflow.py)   |
-                          +--------+---------+
-                                   |
-              +--------------------+--------------------+
-              |                    |                     |
-     +--------v--------+  +-------v--------+  +--------v--------+
-     | collect_domain   |  |  collect_ip    |  |  collect_cidr   |
-     | (crtsh, dns,     |  |  (shodan,      |  |  (shodan per IP)|
-     |  whois, ht, vt)  |  |   ipinfo)      |  |                 |
-     +--------+---------+  +-------+--------+  +--------+--------+
-              |                    |                     |
-              +--------------------+--------------------+
-                                   |
-                          +--------v---------+
-                          |     enrich       |
-                          | (dns resolve,    |
-                          |  shodan ports)   |
-                          +--------+---------+
-                                   |
-                          +--------v---------+
-                          |  active_scan     |  [OPTIONAL]
-                          | Phase 1: nmap,   |
-                          |  dnsrecon, wafw00f|
-                          | Phase 2: nuclei, |
-                          | nikto, gobuster, |
-                          | whatweb, wpscan  |
-                          +--------+---------+
-                                   |
-                          +--------v---------+
-                          |   build_graph    |
-                          |  (NetworkX +     |
-                          |   active data)   |
-                          +--------+---------+
-                                   |
-              +--------------------+--------------------+
-              |                                         |
-     +--------v---------+                   +-----------v----------+
-     |   GraphRAG       |                   |   ai_analyze (MoA)   |
-     | - Hub detection  |                   | Layer 1: Proposers   |
-     | - Attack paths   |------------------>| (multi-LLM parallel) |
-     | - Communities    |   Context         | Layer 2: Aggregator  |
-     | - Orphan nodes   |   Extraction      | Layer 3: Reflection  |
-     | - Shared tech    |                   | (Groq/OpenAI/Claude) |
-     +------------------+                   +----------+-----------+
-                                                       |
-                                            +----------v-----------+
-                                            |      Results         |
-                                            | (Graph, AI Analysis, |
-                                            |  PDF, Markdown)      |
-                                            +----------------------+
-```
+| Scanner | Category | Purpose | Key Features |
+|---------|----------|---------|--------------|
+| **nmap** | Port Scan | Service detection & OS fingerprinting | TCP/UDP, version detection, NSE scripts |
+| **nuclei** | Vuln Scan | Template-based CVE/misconfiguration detection | 5000+ templates, severity filtering |
+| **nikto** | Web Scan | Web server vulnerability scanner | Known exploits, dangerous files, outdated software |
+| **gobuster** | Web Enum | Directory & file brute-forcing | Multi-threaded, custom wordlists |
+| **ffuf** | Web Fuzzing | Fast web fuzzer (alternative to gobuster) | Parameter discovery, vhost enumeration |
+| **whatweb** | Fingerprint | Web technology identification | CMS, frameworks, plugins, versions |
+| **wafw00f** | WAF Detection | Web Application Firewall identification | Vendor detection, evasion planning |
+| **sslscan** | SSL/TLS | Certificate and cipher analysis | Weak ciphers, protocol downgrade vulnerabilities |
+| **dnsrecon** | DNS Enum | Advanced DNS reconnaissance | Zone transfers, subdomain brute-force, cache snooping |
+| **wpscan** | CMS | WordPress-specific vulnerability scanner | Plugin/theme exploits, user enumeration |
 
-**Pipeline flow:**
-1. **Input routing** — conditional branching based on target type (domain/IP/CIDR)
-2. **Data collection** — passive collectors run concurrently via `asyncio.gather`
-3. **Enrichment** — DNS resolution and IP intelligence augmentation
-4. **Active scanning** — optional, phased execution with dependency resolution
-5. **Graph construction** — typed knowledge graph with passive + active data
-6. **GraphRAG extraction** — structural analysis for LLM context enhancement
-7. **MoA analysis** — multi-layer AI reasoning with consensus aggregation
-
-Each stage receives and returns a shared `ScanState` dictionary. Failures are isolated and logged without pipeline interruption.
+### Planned Additions
+- **masscan** — Ultra-fast port scanner (300,000 pps)
+- **httpx** — HTTP probing at scale
+- **feroxbuster** — Recursive directory brute-forcer (Rust-based)
+- **sqlmap** — Automated SQL injection
+- **testssl.sh** — Comprehensive SSL/TLS audit
+- **dalfox** — XSS scanner
 
 ---
 
@@ -139,46 +105,98 @@ Each stage receives and returns a shared `ScanState` dictionary. Failures are is
 
 ### Prerequisites
 
-- Python 3.12 or higher
-- A Groq API key (free tier available at [console.groq.com](https://console.groq.com))
+- **Python 3.12+**
+- **Security tools** — At minimum: `nmap`, `nuclei`, `nikto` (others optional)
+- **AI API key** — Groq (free tier), OpenAI, or Anthropic
 
 ### Steps
 
 ```bash
-git clone <repository-url>
-cd ShadowOsint
+# Clone the repository
+git clone https://github.com/MateoGargat/ShadowStrike.git
+cd ShadowStrike
 
+# Create virtual environment
 python -m venv .venv
 source .venv/bin/activate    # Linux/macOS
 .venv\Scripts\activate       # Windows
 
+# Install Python dependencies
 pip install -r requirements.txt
 
+# Configure environment
 cp .env.example .env
-# Edit .env and add your GROQ_API_KEY
+nano .env  # Add your API keys
+
+# Verify scanner installation
+python -c "from scanners.tool_detector import detect_all_tools; [print(f'{t.name}: {t.installed}') for t in detect_all_tools()]"
 ```
 
-### Dependencies
+### Installing Security Tools
 
-| Package          | Role                                      |
-|------------------|-------------------------------------------|
-| langgraph        | Workflow orchestration                    |
-| instructor       | Structured LLM output (Pydantic)          |
-| groq             | Groq API client                           |
-| openai           | OpenAI API client (optional)              |
-| anthropic        | Anthropic API client (optional)           |
-| langchain-groq   | Groq LLM integration                      |
-| pydantic         | Data validation and serialization         |
-| httpx            | Async HTTP client                         |
-| dnspython        | DNS resolution                            |
-| python-whois     | WHOIS lookups                             |
-| networkx         | Graph data structure + algorithms         |
-| pyvis            | Interactive graph visualization           |
-| streamlit        | Web interface                             |
-| fpdf2            | PDF generation                            |
-| mistune          | Markdown parsing                          |
-| python-dotenv    | Environment variable loading              |
-| defusedxml       | Secure XML parsing (scanner outputs)      |
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install nmap nikto -y
+go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
+```
+
+**macOS (Homebrew):**
+```bash
+brew install nmap nikto nuclei gobuster
+```
+
+**Kali Linux:**
+```bash
+# Most tools pre-installed
+sudo apt install nuclei gobuster ffuf
+```
+
+---
+
+## Quick Start
+
+### Web Interface (Recommended)
+
+```bash
+streamlit run app.py
+```
+
+1. **Sidebar**: Enable active scanning (toggle ON)
+2. **Sidebar**: Select scan intensity (Quick/Standard/Aggressive)
+3. **Sidebar**: Choose scanners to run
+4. **Main input**: Enter target (domain, IP, or CIDR)
+5. **Click**: "🔍 Scan"
+
+### Command-Line Usage
+
+```python
+from core.models import AppConfig, ActiveScanConfig, ScanIntensity
+from workflow import WorkflowRunner
+
+# Configure aggressive active scan
+config = AppConfig(
+    groq_api_key="your_groq_api_key",
+    active_scan=ActiveScanConfig(
+        enabled=True,
+        intensity=ScanIntensity.AGGRESSIVE,
+        selected_scanners=["nmap", "nuclei", "nikto", "gobuster"],
+        scanner_timeout=1800
+    )
+)
+
+# Run scan
+runner = WorkflowRunner(config=config)
+state = runner.run("target.com")
+
+# Extract results
+scan_result = runner.get_scan_result(state)
+analysis = runner.get_analysis(state)
+
+print(f"Vulnerabilities: {len(scan_result.vulnerabilities)}")
+print(f"Risk Score: {analysis.risk_score}/100")
+print(f"Critical Findings: {len([f for f in analysis.findings if f.severity == 'critical'])}")
+```
 
 ---
 
@@ -186,647 +204,149 @@ cp .env.example .env
 
 ### Environment Variables
 
-Create a `.env` file at the project root:
+```bash
+# === AI Analysis (required) ===
+GROQ_API_KEY=gsk_...                     # Groq (Llama 3.3 70B)
+OPENAI_API_KEY=sk-...                    # OpenAI (GPT-4) - optional for MoA
+ANTHROPIC_API_KEY=sk-ant-...             # Anthropic (Claude) - optional for MoA
 
-```
-# === AI Analysis (at least one required) ===
-GROQ_API_KEY=your_groq_api_key_here
-OPENAI_API_KEY=                        # Optional: for GPT models
-ANTHROPIC_API_KEY=                     # Optional: for Claude models
-
-# === Passive Collection (optional) ===
-SHODAN_API_KEY=
-VIRUSTOTAL_API_KEY=
-IPINFO_TOKEN=
-
-# === Active Scanning Configuration (optional) ===
-# Enable active scanning (default: false)
-ENABLE_ACTIVE_SCAN=false
-
-# Scan intensity: quick, standard, aggressive (default: standard)
-SCAN_INTENSITY=standard
-
-# Comma-separated list of scanners to enable (default: all except ffuf)
-# Available: nmap,nuclei,nikto,gobuster,whatweb,wafw00f,sslscan,dnsrecon,ffuf,wpscan
+# === Active Scanning (default enabled) ===
+ENABLE_ACTIVE_SCAN=true
+SCAN_INTENSITY=aggressive                # quick | standard | aggressive
 SELECTED_SCANNERS=nmap,nuclei,nikto,gobuster,whatweb,wafw00f,sslscan,dnsrecon,wpscan
 
-# Custom tool paths (optional, auto-detected by default)
-NMAP_PATH=/custom/path/to/nmap
-NUCLEI_PATH=/custom/path/to/nuclei
+# === Optional: Passive Recon (for target enumeration) ===
+SHODAN_API_KEY=                          # Shodan API for port intelligence
+VIRUSTOTAL_API_KEY=                      # VirusTotal for subdomain discovery
+IPINFO_TOKEN=                            # ipinfo.io for geolocation/ASN
+
+# === Advanced ===
+SCANNER_TIMEOUT=600                      # Timeout per scanner (seconds)
+MAX_CONCURRENT_SCANNERS=3                # Parallel scanner limit
+WORDLIST_PATH=/usr/share/wordlists/dirb/common.txt
 ```
-
-### API Keys Behavior
-
-| Key                | Required | Without Key                          | With Key                      |
-|--------------------|----------|--------------------------------------|-------------------------------|
-| GROQ_API_KEY       | Yes*     | AI analysis disabled                 | Full AI security assessment   |
-| OPENAI_API_KEY     | No       | OpenAI models unavailable            | GPT-4 for MoA proposers       |
-| ANTHROPIC_API_KEY  | No       | Claude models unavailable            | Claude Sonnet for MoA         |
-| SHODAN_API_KEY     | No       | Uses InternetDB (free, limited data) | Full Shodan API with banners  |
-| VIRUSTOTAL_API_KEY | No       | Collector skipped                    | Additional subdomain data     |
-| IPINFO_TOKEN       | No       | Collector skipped                    | IP geolocation and ASN data   |
-
-\* At least one LLM provider key is required for AI analysis. Without any key, only raw data collection and graph visualization are available.
-
-All keys can also be entered directly in the Streamlit sidebar at runtime.
-
----
-
-## Usage
-
-### Web Interface
-
-```bash
-streamlit run app.py
-```
-
-This opens a browser with the full interface. Enter a target in the input field, click Scan, and navigate the result tabs.
-
-### Programmatic Usage
-
-#### Basic Passive Scan
-
-```python
-from core.models import AppConfig
-from cache.cache_manager import CacheManager
-from workflow import WorkflowRunner
-
-config = AppConfig(groq_api_key="your_key")
-cache = CacheManager(enabled=True)
-runner = WorkflowRunner(config=config, cache=cache)
-
-state = runner.run("example.com")
-
-scan_result = runner.get_scan_result(state)
-analysis = runner.get_analysis(state)
-
-print(f"Subdomains found: {len(scan_result.subdomains)}")
-print(f"Risk score: {analysis.risk_score}/100")
-```
-
-#### Active Scan with Custom Profile
-
-```python
-from core.models import AppConfig, ActiveScanConfig, ScanIntensity
-from workflow import WorkflowRunner
-
-# Configure active scanning
-active_config = ActiveScanConfig(
-    enabled=True,
-    intensity=ScanIntensity.AGGRESSIVE,
-    selected_scanners=["nmap", "nuclei", "nikto", "gobuster"],
-    scanner_timeout=1800  # 30 minutes
-)
-
-config = AppConfig(
-    groq_api_key="your_key",
-    active_scan_config=active_config
-)
-
-runner = WorkflowRunner(config=config)
-state = runner.run("example.com")
-
-# Access vulnerability findings
-scan_result = runner.get_scan_result(state)
-print(f"Vulnerabilities found: {len(scan_result.vulnerabilities)}")
-for vuln in scan_result.vulnerabilities:
-    print(f"  [{vuln.severity}] {vuln.title}")
-```
-
-#### Mixture of Agents Configuration
-
-```python
-from core.models import AppConfig, MoAConfig
-
-# Configure MoA with multiple proposers
-moa_config = MoAConfig(
-    proposers=[
-        {"provider": "groq", "model": "llama-3.3-70b-versatile"},
-        {"provider": "openai", "model": "gpt-4"},
-        {"provider": "anthropic", "model": "claude-3-sonnet-20240229"},
-    ],
-    aggregator={"provider": "groq", "model": "llama-3.3-70b-versatile"},
-    enable_reflection=True,
-    max_reflection_iterations=2
-)
-
-config = AppConfig(
-    groq_api_key="your_groq_key",
-    openai_api_key="your_openai_key",
-    anthropic_api_key="your_anthropic_key",
-    moa_config=moa_config
-)
-
-runner = WorkflowRunner(config=config)
-state = runner.run("example.com")
-
-# MoA analysis includes consensus from multiple models
-analysis = runner.get_analysis(state)
-print(f"Consensus risk score: {analysis.risk_score}/100")
-```
-
----
-
-## Supported Inputs
-
-| Type   | Examples                            | Notes                              |
-|--------|-------------------------------------|------------------------------------|
-| Domain | `example.com`, `sub.example.com`    | Automatically lowercased, trailing dots removed |
-| IPv4   | `8.8.8.8`, `192.168.1.1`           | Standard dotted notation           |
-| IPv6   | `2001:db8::1`                       | Standard colon notation            |
-| CIDR   | `8.8.8.0/28`, `192.168.1.0/24`     | Maximum /24 (256 addresses)        |
-
-Invalid inputs are rejected with descriptive error messages.
-
----
-
-## Data Sources
-
-### Priority 0 — Always Active (no API key needed)
-
-| Source       | Data Collected                                    |
-|--------------|---------------------------------------------------|
-| crt.sh       | Subdomains via Certificate Transparency logs      |
-| DNS          | A, AAAA, MX, NS, TXT, CNAME, SOA records         |
-| WHOIS        | Registrar, dates, nameservers, organization       |
-| HackerTarget | Subdomains with associated IPs, ASN lookup        |
-
-### Priority 1 — Free Tier Available
-
-| Source       | Data Collected                                    |
-|--------------|---------------------------------------------------|
-| Shodan       | InternetDB: open ports, CPEs, hostnames, vulns    |
-
-### Priority 2 — API Key Required
-
-| Source       | Data Collected                                    |
-|--------------|---------------------------------------------------|
-| VirusTotal   | Additional subdomains via API v3                  |
-| ipinfo.io    | IP geolocation, ASN, organization                 |
-
----
-
-## Active Scanners
-
-**⚠️ Authorization Required:** Active scanning directly interacts with target systems. Only use on infrastructure you own or have explicit written permission to test.
-
-Shadow-OSINT integrates 10 professional security tools for comprehensive vulnerability assessment:
-
-| Scanner    | Purpose                              | Output Parsed                          |
-|------------|--------------------------------------|----------------------------------------|
-| **nmap**   | Port scanning and service detection  | Open ports, services, versions, OS     |
-| **nuclei** | Template-based vulnerability scanner | CVEs, misconfigurations, exposures     |
-| **nikto**  | Web server scanner                   | Known vulnerabilities, server issues   |
-| **gobuster** | Directory/file brute-forcing       | Hidden paths, sensitive files          |
-| **whatweb** | Web technology fingerprinting       | CMS, frameworks, plugins, versions     |
-| **wafw00f** | Web Application Firewall detection  | WAF vendor, confidence level           |
-| **sslscan** | SSL/TLS configuration analysis      | Ciphers, certificate info, weaknesses  |
-| **dnsrecon** | Advanced DNS enumeration           | Zone transfers, brute-force, records   |
-| **ffuf**   | Fast web fuzzer (alternative to gobuster) | Directories, parameters, vhosts   |
-| **wpscan** | WordPress-specific vulnerability scanner | Plugins, themes, users, vulns      |
-
-### Scan Profiles
-
-| Profile       | nmap Scope   | Wordlist  | Nuclei Severity | Timeout | Use Case              |
-|---------------|--------------|-----------|-----------------|---------|------------------------|
-| **Quick**     | Top 100      | common    | high, critical  | 5 min   | Fast initial recon     |
-| **Standard**  | Top 1000     | medium    | low+            | 10 min  | Balanced coverage      |
-| **Aggressive**| All 65535    | big       | info+           | 20 min  | Comprehensive audit    |
-
-### Phased Execution
-
-Scanners run in two phases to optimize dependency resolution:
-
-- **Phase 1** (no dependencies): `nmap`, `dnsrecon`, `wafw00f`
-- **Phase 2** (uses Phase 1 results): `whatweb`, `sslscan`, `gobuster`, `nikto`, `nuclei`, `wpscan`
-
-Mutual exclusions apply automatically (e.g., only `gobuster` OR `ffuf` runs unless explicitly overridden).
-
-### Tool Detection
-
-Shadow-OSINT automatically detects installed tools at startup:
-
-```python
-from scanners.tool_detector import detect_all_tools
-
-tools = detect_all_tools()
-for tool in tools:
-    print(f"{tool.name}: {'✓' if tool.installed else '✗'} {tool.version or ''}")
-```
-
-Missing tools are skipped gracefully. No tool is mandatory — run what you have installed.
-
----
-
-## Project Structure
-
-```
-ShadowOsint/
-|
-|-- app.py                         Streamlit web interface
-|-- workflow.py                    LangGraph pipeline orchestration
-|-- requirements.txt               Python dependencies
-|-- .env.example                   Environment variable template
-|-- conftest.py                    Root pytest configuration
-|
-|-- core/
-|   |-- models.py                  Pydantic models, enums, TypedDict state
-|   |-- input_parser.py            Input validation (domain, IP, CIDR)
-|   |-- graph.py                   NetworkX graph construction and stats
-|
-|-- collectors/
-|   |-- __init__.py                Collector registry and factory functions
-|   |-- base.py                    Abstract base with HTTP, caching, rate limiting
-|   |-- crtsh.py                   Certificate Transparency (crt.sh)
-|   |-- dns_resolver.py            DNS resolution (dnspython)
-|   |-- whois_collector.py         WHOIS registration data
-|   |-- hackertarget.py            HackerTarget hostsearch and ASN
-|   |-- shodan_collector.py        Shodan InternetDB + full API
-|   |-- virustotal.py              VirusTotal API v3
-|   |-- ipinfo_collector.py        ipinfo.io geolocation and ASN
-|
-|-- analyzers/
-|   |-- ai_analyst.py              Mixture of Agents (MoA) orchestration
-|   |-- llm_providers.py           Multi-provider LLM abstraction (Groq/OpenAI/Anthropic)
-|   |-- graph_rag.py               GraphRAG context extraction from knowledge graph
-|   |-- prompts.py                 System prompts for proposer/aggregator/reflection
-|
-|-- scanners/
-|   |-- __init__.py                Scanner registry and factory
-|   |-- base.py                    Abstract base for subprocess-based scanners
-|   |-- profiles.py                Scan intensity profiles (Quick/Standard/Aggressive)
-|   |-- tool_detector.py           Auto-detection of installed security tools
-|   |-- nmap_scanner.py            Nmap port scanner
-|   |-- nuclei_scanner.py          Nuclei vulnerability scanner
-|   |-- nikto_scanner.py           Nikto web server scanner
-|   |-- gobuster_scanner.py        Gobuster directory brute-forcer
-|   |-- whatweb_scanner.py         WhatWeb technology fingerprinter
-|   |-- wafw00f_scanner.py         Wafw00f WAF detector
-|   |-- ssl_scanner.py             SSLScan TLS analyzer
-|   |-- dnsrecon_scanner.py        DNSRecon advanced DNS enumeration
-|   |-- ffuf_scanner.py            Ffuf web fuzzer
-|   |-- wpscan_scanner.py          WPScan WordPress scanner
-|   |-- output_parsers/            Structured parsers for all scanner outputs
-|
-|-- visualization/
-|   |-- graph_renderer.py          pyvis interactive graph rendering
-|
-|-- exporters/
-|   |-- markdown_export.py         Markdown report generation
-|   |-- pdf_export.py              PDF report generation (fpdf2)
-|
-|-- cache/
-|   |-- cache_manager.py           JSON file cache with TTL
-|
-|-- tests/
-    |-- conftest.py                Shared test fixtures
-    |-- test_input_parser.py       12 tests — input validation
-    |-- test_graph.py              9 tests — graph construction
-    |-- test_cache.py              9 tests — cache operations
-    |-- test_ai_analyst.py         5 tests — AI analysis
-    |-- test_integration.py        3 tests — end-to-end workflow
-    |-- test_collectors/
-    |   |-- test_crtsh.py          6 tests
-    |   |-- test_dns.py            6 tests
-    |   |-- test_whois.py          4 tests
-    |   |-- test_hackertarget.py   4 tests
-    |   |-- test_shodan.py         4 tests
-    |   |-- test_virustotal.py     3 tests
-    |-- test_scanners/
-        |-- test_nmap.py           Scanner + parser tests
-        |-- test_nuclei.py         Scanner + parser tests
-        |-- test_nikto.py          Scanner + parser tests
-        |-- test_gobuster.py       Scanner + parser tests
-        |-- test_tool_detector.py  Tool detection tests
-```
-
----
-
-## Workflow Pipeline
-
-The LangGraph workflow follows this execution path:
-
-```
-START
-  |
-  v
-parse_input -----> Validates and classifies the raw input
-  |
-  v
-route_by_type ---> Conditional branching based on InputType
-  |
-  +-- domain --> collect_domain (crtsh + dns + whois + hackertarget + virustotal)
-  +-- ip -----> collect_ip     (shodan + ipinfo)
-  +-- cidr ---> collect_cidr   (shodan per IP in range)
-  |
-  v
-enrich ----------> Resolves subdomain DNS, queries Shodan for discovered IPs
-  |
-  v
-build_graph -----> Constructs typed knowledge graph from all collected data
-  |
-  v
-ai_analyze ------> Sends context to Groq LLM, receives structured AIAnalysis
-  |
-  v
-END
-```
-
-### State Management
-
-All nodes share a `ScanState` TypedDict. Each node receives the full state and returns a partial dictionary that gets merged back. This design ensures:
-
-- Collectors can run concurrently within a node
-- Failures are recorded without halting the pipeline
-- Progress can be tracked at each stage
-
----
-
-## Graph Model
-
-The knowledge graph uses typed nodes and directed edges to represent the complete attack surface:
-
-### Node Types
-
-| Type           | Description                      | Visual          | Source        |
-|----------------|----------------------------------|-----------------|---------------|
-| Domain         | Root target domain               | Red star        | Passive       |
-| Subdomain      | Discovered subdomain             | Orange dot      | Passive       |
-| IP             | IPv4 or IPv6 address             | Blue diamond    | Passive       |
-| Port           | Open port on an IP               | Green square    | Passive/Active|
-| Technology     | Software or service              | Purple triangle | Passive/Active|
-| ASN            | Autonomous System Number         | Teal hexagon    | Passive       |
-| Vulnerability  | Identified security issue        | Red octagon     | **Active**    |
-| WebDirectory   | Discovered web path              | Yellow folder   | **Active**    |
-| WAF            | Web Application Firewall         | Blue shield     | **Active**    |
-| SSLCert        | SSL/TLS certificate              | Green lock      | **Active**    |
-
-### Relation Types
-
-| Relation           | From             | To            | Description                    |
-|--------------------|------------------|---------------|--------------------------------|
-| HAS_SUBDOMAIN      | Domain           | Subdomain     | Domain ownership               |
-| RESOLVES_TO        | Domain/Subdomain | IP            | DNS resolution                 |
-| HAS_PORT           | IP               | Port          | Network service                |
-| RUNS               | Port/IP          | Technology    | Software identification        |
-| BELONGS_TO_ASN     | IP               | ASN           | Network allocation             |
-| HAS_VULNERABILITY  | IP/Port          | Vulnerability | Security finding (active scan) |
-| HAS_DIRECTORY      | IP               | WebDirectory  | Web content (active scan)      |
-| PROTECTED_BY       | Domain           | WAF           | Firewall detection             |
-| HAS_SSL_CERT       | IP               | SSLCert       | Certificate association        |
-
----
-
-## GraphRAG: Graph-Enhanced Context Extraction
-
-Shadow-OSINT uses **GraphRAG** (Graph-based Retrieval Augmented Generation) to extract high-level structural insights from the knowledge graph before AI analysis. This enhances LLM reasoning by providing graph-derived intelligence beyond raw data tables.
-
-### Extracted Features
-
-1. **Graph Statistics**
-   - Total nodes and edges by type
-   - Graph density and connectivity metrics
-   - Average degree distribution
-
-2. **Hub Nodes (High-Risk Concentration Points)**
-   - Identifies assets with unusually high connectivity
-   - Example: An IP hosting 50+ subdomains may indicate shared infrastructure
-   - Ranked by degree centrality
-
-3. **Attack Path Enumeration**
-   - Discovers routes from internet-facing assets to internal resources
-   - Chains like: `Subdomain → IP → Port → Technology → Vulnerability`
-   - Prioritizes paths ending in critical vulnerabilities
-
-4. **Community Detection**
-   - Groups related assets using graph clustering algorithms
-   - Reveals infrastructure patterns (e.g., AWS vs. GCP clusters)
-   - Identifies shadow IT based on isolated communities
-
-5. **Orphan Subdomain Detection**
-   - Finds subdomains without IP resolution (dangling DNS)
-   - Potential subdomain takeover vulnerabilities
-   - Indicates abandoned infrastructure
-
-6. **Shared Technology Mapping**
-   - Identifies common software across multiple assets
-   - Example: "nginx 1.18" on 15 IPs → single patch fixes widespread issue
-   - Highlights systemic vulnerabilities
-
-7. **ASN Distribution Analysis**
-   - Maps IP allocation across Autonomous Systems
-   - Reveals cloud provider diversity or single-point-of-failure risks
-   - Geolocation distribution insights
-
-### Integration with LLM Analysis
-
-GraphRAG context is prepended to the scan data before LLM analysis:
-
-```
-# Knowledge Graph Context
-## Graph Statistics
-Total nodes: 247 (subdomain: 180, ip: 42, port: 18, technology: 7)
-...
-
-## High-Connectivity Nodes (Hubs)
-- 203.0.113.5 (type=ip, connections=23) — hosting many services
-- nginx (type=technology, connections=15) — widespread deployment
-
-## Attack Paths (12 found)
-- www.example.com -> 203.0.113.5 -> 443/tcp -> Apache 2.4.29 -> CVE-2021-44790
-...
-```
-
-This structured context helps LLMs identify:
-- **Systemic risks** (shared vulnerabilities)
-- **Critical paths** (high-impact attack routes)
-- **Infrastructure patterns** (multi-cloud, shadow IT)
-- **Abandoned assets** (orphan subdomains)
 
 ---
 
 ## AI Analysis
 
-Shadow-OSINT employs a **Mixture of Agents (MoA)** architecture combined with **GraphRAG** for sophisticated security analysis.
+ShadowStrike uses **Mixture of Agents (MoA)** for multi-perspective security analysis:
 
-### Architecture Layers
+### Architecture
 
-#### Layer 1: Proposers (Parallel Analysis)
-Multiple LLM instances independently analyze the scan data from different perspectives:
-- Each proposer receives the full scan context + GraphRAG-extracted insights
-- Proposers can use different models/providers (Groq Llama 3.3, GPT-4, Claude Sonnet)
-- All proposers run in parallel for maximum diversity
-
-#### Layer 2: Aggregator (Consensus Building)
-A specialized aggregator model receives all proposer analyses and:
-- Identifies consensus findings
-- Resolves conflicting assessments
-- Synthesizes a unified security assessment
-- Produces structured `AIAnalysis` output with risk scoring
-
-#### Layer 3: Reflection (Optional Quality Check)
-An optional reflection layer reviews the aggregated analysis and:
-- Validates logical consistency
-- Checks for missing critical insights
-- Can trigger re-analysis if quality is insufficient
-- Iterates up to `max_reflection_iterations` (default: 1)
-
-### GraphRAG Context Enhancement
-
-Before LLM analysis, GraphRAG extracts structural insights from the knowledge graph:
-
-- **Hub detection** — identifies high-connectivity nodes (concentration points)
-- **Attack path enumeration** — finds routes from internet-exposed assets to sensitive resources
-- **Community detection** — clusters related assets (shared infrastructure)
-- **Orphan identification** — discovers dangling subdomains without IP resolution
-- **Technology mapping** — identifies shared software creating common vulnerabilities
-- **ASN distribution** — reveals multi-cloud or single-provider dependencies
-
-This structured context enhances LLM reasoning beyond raw data tables.
-
-### Output Structure
-
-- **Risk Score** (0-100) — quantified exposure rating
-- **Executive Summary** — high-level assessment
-- **Findings** — individual issues with severity, description, affected assets, and recommendations
-- **Exposed Services Summary** — overview of the attack surface
-- **Recommendations** — prioritized action items
-
-### Severity Levels
-
-| Level    | Description                                           |
-|----------|-------------------------------------------------------|
-| Critical | Immediately exploitable, known CVEs, exposed databases |
-| High     | Significant risk, outdated software, admin panels      |
-| Medium   | Excessive sprawl, missing email security               |
-| Low      | Best-practice recommendations                          |
-| Info     | Neutral observations                                   |
-
-### Multi-Provider Support
-
-Shadow-OSINT supports multiple LLM providers via unified abstraction:
-
-| Provider   | Models Supported              | Required API Key       |
-|------------|-------------------------------|------------------------|
-| Groq       | llama-3.3-70b-versatile       | GROQ_API_KEY           |
-| OpenAI     | gpt-4, gpt-4-turbo, gpt-3.5   | OPENAI_API_KEY         |
-| Anthropic  | claude-3-sonnet, claude-3-opus| ANTHROPIC_API_KEY      |
-
-All providers use `instructor` for guaranteed structured output conforming to the `AIAnalysis` Pydantic model.
-
----
-
-## Export Formats
-
-### Markdown
-
-Full report with tables for subdomains, IPs, ports, technologies, DNS records, WHOIS data, and AI findings. Suitable for documentation or further processing.
-
-### PDF
-
-Formatted report with sections, risk-colored score, finding details, and asset listings. Uses fpdf2 with custom headers and footers.
-
-Both formats include all scan data and the complete AI analysis when available.
-
----
-
-## Cache System
-
-Collector results are cached as JSON files in the `cache/` directory.
-
-| Parameter  | Default | Description                        |
-|------------|---------|------------------------------------|
-| Enabled    | true    | Toggle caching on/off              |
-| TTL        | 86400s  | Cache entry lifetime (24 hours)    |
-| Directory  | cache/  | Storage location                   |
-
-Cache keys are derived from `sha256(source:target)`, truncated to 16 characters. Expired entries are cleaned on access. The cache can be cleared manually from the Streamlit sidebar or programmatically:
-
-```python
-from cache.cache_manager import CacheManager
-
-cache = CacheManager()
-cache.clear_all()       # Remove everything
-cache.clear_expired()   # Remove only expired entries
-cache.invalidate("crtsh", "example.com")  # Remove specific entry
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Scan Data + GraphRAG Context                               │
+│  (Ports, Services, Vulns, Attack Paths, Hub Nodes)          │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │   Layer 1: Proposers    │  (Parallel Analysis)
+        ├─────────────────────────┤
+        │ • Llama 3.3 70B (Groq)  │  → Analysis 1
+        │ • GPT-4 (OpenAI)        │  → Analysis 2
+        │ • Claude Sonnet         │  → Analysis 3
+        └────────────┬────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │  Layer 2: Aggregator    │  (Consensus Building)
+        ├─────────────────────────┤
+        │ Synthesizes findings    │  → Unified Analysis
+        │ Resolves conflicts      │  → Risk Score
+        │ Prioritizes by exploit  │  → Attack Scenarios
+        └────────────┬────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │ Layer 3: Reflection     │  (Quality Check)
+        ├─────────────────────────┤
+        │ Validates consistency   │  → Final Report
+        │ Flags missing insights  │  → Recommendations
+        └─────────────────────────┘
 ```
 
+### AI-Generated Insights
+
+- **Exploit Prioritization**: Ranks vulnerabilities by weaponization difficulty
+- **Attack Scenario Synthesis**: Multi-stage exploitation chains
+- **Lateral Movement Suggestions**: Pivot opportunities based on discovered services
+- **Credential Spray Candidates**: Services susceptible to default/weak credentials
+- **Systemic Risk Identification**: Shared vulnerabilities across infrastructure
+
 ---
 
-## Testing
+## GraphRAG Attack Path Analysis
 
-All tests use mocks — no network calls are made during testing.
+**GraphRAG** (Graph-based Retrieval Augmented Generation) extracts offensive intelligence from the knowledge graph:
 
-```bash
-# Run all tests
-pytest
+### Attack Path Discovery
 
-# Run with verbose output
-pytest -v
-
-# Run with coverage
-pytest --cov
-
-# Run a specific module
-pytest tests/test_input_parser.py
-
-# Run collector tests only
-pytest tests/test_collectors/
+```
+Internet → subdomain.target.com → 203.0.113.5 → 22/tcp (SSH OpenSSH 7.4) → CVE-2023-XXXX → RCE
+                                               → 80/tcp (Apache 2.4.29) → CVE-2021-44790 → LFI
+                                               → 3306/tcp (MySQL 5.7) → Weak Auth → Data Access
 ```
 
-### Test Summary
+### Critical Node Detection
 
-| Module          | Tests | Coverage Target | Notes                          |
-|-----------------|-------|-----------------|--------------------------------|
-| Input Parser    | 12    | 100%            | Domain/IP/CIDR validation      |
-| Graph           | 9     | 80%+            | Graph construction + new nodes |
-| Cache           | 9     | 90%+            | TTL and invalidation           |
-| AI Analyst      | 5     | 90%+            | MoA + GraphRAG                 |
-| Collectors (7)  | 27    | 90%+            | All passive sources            |
-| Scanners (10)   | ~40   | 85%+            | Active scanners + parsers      |
-| Integration     | 3     | Pipeline paths  | End-to-end workflows           |
-| **Total**       | **100+** | **80%+**     | All tests use mocks            |
+Identifies high-value targets:
+- **Domain Controllers** (ports 88, 389, 445)
+- **Databases** (3306, 5432, 1433, 27017)
+- **Admin Interfaces** (/admin, /wp-admin, /phpmyadmin)
+- **VPN Gateways** (443, 1194, 500/4500)
+
+### Lateral Movement Mapping
+
+```
+DMZ Host (203.0.113.5) → Pivot Candidates:
+  • Port 445 (SMB) → Internal network enumeration
+  • Port 3389 (RDP) → Credential stuffing
+  • Port 22 (SSH) → Key-based lateral movement
+```
+
+### Shared Vulnerability Analysis
+
+```
+nginx 1.18.0 detected on 15 hosts:
+  → CVE-2021-23017 (RCE)
+  → Single exploit chain compromises entire cluster
+  → Systemic risk level: CRITICAL
+```
 
 ---
 
 ## Usage Scenarios
 
-### Scenario 1: Initial Reconnaissance (Passive Only)
+### Scenario 1: External Penetration Test
 
-**Objective:** Understand external attack surface without touching the target.
-
-```bash
-streamlit run app.py
-# Enter: example.com
-# Enable: Passive mode only
-# Expected: Subdomains, IPs, ports from public sources
-```
-
-**Use case:** Pre-engagement scoping, competitive intelligence, supply chain assessment.
-
-### Scenario 2: Authorized Vulnerability Assessment (Active)
-
-**Objective:** Deep security audit with full tool suite.
+**Objective**: Identify exploitable vulnerabilities in internet-facing infrastructure
 
 ```bash
-# Set in .env:
+# .env configuration
 ENABLE_ACTIVE_SCAN=true
 SCAN_INTENSITY=aggressive
-SELECTED_SCANNERS=nmap,nuclei,nikto,gobuster,whatweb,wafw00f,sslscan,wpscan
+SELECTED_SCANNERS=nmap,nuclei,nikto,gobuster,whatweb,wafw00f,sslscan
 
+# Run scan
 streamlit run app.py
-# Enter: yourdomain.com (you own this!)
+# Target: client-domain.com
 ```
 
-**Use case:** Pre-deployment security audit, red team exercise, compliance scanning.
+**Expected Output**:
+- 200+ open ports across 50 subdomains
+- 15 high/critical CVEs
+- 8 exploitable paths (subdomain → RCE)
+- PDF report with exploitation priority
 
-### Scenario 3: Multi-Model Consensus Analysis (MoA)
+---
 
-**Objective:** Reduce AI hallucinations through multi-model voting.
+### Scenario 2: Red Team Exercise
+
+**Objective**: Simulate APT attack with multi-stage compromise
 
 ```python
-from core.models import AppConfig, MoAConfig
+from core.models import AppConfig, ActiveScanConfig, MoAConfig
 
+# Multi-model consensus for reduced false positives
 moa = MoAConfig(
     proposers=[
         {"provider": "groq", "model": "llama-3.3-70b-versatile"},
@@ -839,152 +359,205 @@ moa = MoAConfig(
 config = AppConfig(
     groq_api_key="...",
     openai_api_key="...",
+    active_scan=ActiveScanConfig(
+        enabled=True,
+        intensity=ScanIntensity.AGGRESSIVE,
+        selected_scanners=["nmap", "nuclei", "dnsrecon", "gobuster", "wpscan"]
+    ),
     moa_config=moa
 )
+
+runner = WorkflowRunner(config=config)
+state = runner.run("10.0.0.0/24")
+
+# Export attack graph
+graph_data = state.get("graph_data")
+# Identify pivot opportunities
+analysis = runner.get_analysis(state)
+print(analysis.recommendations)
 ```
-
-**Use case:** High-stakes assessments requiring maximum AI accuracy.
-
-### Scenario 4: Continuous Monitoring with Cache
-
-**Objective:** Daily recon with minimal API usage.
-
-```bash
-# Set cache TTL to 24 hours (default)
-# Run daily cron job:
-0 9 * * * cd /path/to/ShadowOsint && python -c "from workflow import WorkflowRunner; ..."
-```
-
-**Use case:** Detecting new subdomains, port changes, certificate expirations.
 
 ---
 
-## Best Practices
+### Scenario 3: Web Application Pentest
 
-### Security & Ethics
+**Objective**: Comprehensive web vulnerability assessment
 
-1. **Authorization First**
-   - NEVER run active scans without explicit written permission
-   - Passive reconnaissance is legal but be aware of terms of service
-   - Consider rate limits and responsible disclosure
+```bash
+# Focus on web scanners only
+SELECTED_SCANNERS=nmap,nikto,gobuster,whatweb,wafw00f,nuclei,wpscan
+SCAN_INTENSITY=aggressive
+WORDLIST_PATH=/usr/share/seclists/Discovery/Web-Content/common.txt
 
-2. **API Key Management**
-   - Use environment variables, never commit keys to git
-   - Rotate keys regularly
-   - Use separate keys for testing vs. production
+streamlit run app.py
+# Target: https://webapp.target.com
+```
 
-3. **Rate Limiting**
-   - Respect API rate limits (built-in for collectors)
-   - Use cache to avoid redundant requests
-   - Spread large CIDR scans over time
-
-### Performance Optimization
-
-1. **Cache Strategy**
-   - Enable cache for repeated scans
-   - Adjust TTL based on target volatility
-   - Use `cache.clear_expired()` to free space
-
-2. **Active Scan Tuning**
-   - Start with `quick` profile for initial assessment
-   - Use `aggressive` only when time permits
-   - Exclude scanners not relevant to target (e.g., skip wpscan for non-WordPress)
-
-3. **MoA Configuration**
-   - Single proposer (Groq) for speed
-   - 2-3 proposers for accuracy
-   - Disable reflection for simple targets
-
-### Operational Tips
-
-1. **Phased Approach**
-   - Day 1: Passive recon only
-   - Day 2: Active scan with `quick` profile
-   - Day 3: Targeted deep scan on high-risk assets
-
-2. **Result Validation**
-   - Cross-reference findings with other tools
-   - Manually verify AI-identified vulnerabilities
-   - Use PDF reports for stakeholder communication
-
-3. **Integration**
-   - Export Markdown for CI/CD pipelines
-   - Parse JSON output for SIEM integration
-   - Use graph data for custom visualization
+**AI Analysis Focus**:
+- XSS injection points
+- SQL injection candidates
+- Authentication bypasses
+- Sensitive file exposure (/backup.sql, /.env)
 
 ---
 
-## Troubleshooting
+## Scan Profiles
 
-### "Tool not found" errors
+| Profile | Port Range | Wordlist Size | Nuclei Templates | Timeout | Use Case |
+|---------|-----------|---------------|------------------|---------|----------|
+| **Quick** | Top 100 | 2,000 entries | Critical only | 5 min | Initial recon |
+| **Standard** | Top 1,000 | 10,000 entries | High+ | 10 min | Balanced coverage |
+| **Aggressive** | All 65,535 | 50,000+ entries | All severities | 20+ min | Full audit |
 
-```bash
-# Check tool installation
-python -c "from scanners.tool_detector import detect_all_tools; print(detect_all_tools())"
+---
 
-# Install missing tools (example for Ubuntu/Debian)
-sudo apt install nmap nikto
-go install github.com/projectdiscovery/nuclei/v2/cmd/nuclei@latest
+## Export & Integration
+
+### Markdown Reports
+
+```python
+from exporters.markdown_export import export_markdown
+
+md = export_markdown(scan_result, analysis)
+with open("report.md", "w") as f:
+    f.write(md)
 ```
 
-### LLM API errors
+### PDF Reports
 
-- **Groq rate limit:** Wait 60s or upgrade to paid tier
-- **OpenAI timeout:** Increase `llm_max_tokens` or reduce context
-- **Anthropic unavailable:** Check API key format (should start with `sk-ant-`)
+```python
+from exporters.pdf_export import export_pdf
 
-### Active scan hangs
+pdf_bytes = export_pdf(scan_result, analysis)
+with open("report.pdf", "wb") as f:
+    f.write(pdf_bytes)
+```
 
-- Check `scanner_timeout` in config
-- Verify target is reachable: `ping <target>`
-- Run individual scanner manually to debug: `nmap -sV <target>`
+### JSON Export (for Metasploit, SIEM)
 
-### Graph visualization not loading
+```python
+import json
 
-- Ensure `pyvis` is installed: `pip install pyvis`
-- Check browser console for JavaScript errors
-- Try refreshing the page or clearing browser cache
+# Export vulnerabilities
+vulns = [v.model_dump() for v in scan_result.vulnerabilities]
+with open("vulns.json", "w") as f:
+    json.dump(vulns, f, indent=2)
+```
+
+---
+
+## Legal & Ethics
+
+### Authorization Requirements
+
+**YOU MUST HAVE EXPLICIT WRITTEN PERMISSION** before scanning any target you do not own.
+
+Unauthorized penetration testing is **illegal** in most jurisdictions and may violate:
+- **Computer Fraud and Abuse Act (CFAA)** — USA
+- **Computer Misuse Act** — UK
+- **GDPR** — European Union
+- **Criminal Code** — Canada, Australia, others
+
+### Responsible Use
+
+✅ **Authorized Use Cases**:
+- Penetration tests with signed contracts
+- Red team exercises for your employer
+- Bug bounty programs (follow scope rules)
+- Personal infrastructure you own
+
+❌ **Unauthorized Use**:
+- Scanning targets without permission
+- "Grey hat" testing of third parties
+- Credential stuffing/brute-forcing
+- Denial-of-service attacks
+
+### Responsible Disclosure
+
+If you discover vulnerabilities:
+1. **Notify the organization privately** (security@target.com)
+2. **Allow 90 days** for remediation
+3. **Do not publish exploits** until patched
+4. **Follow coordinated disclosure** standards (ISO 29147)
 
 ---
 
 ## Roadmap
 
-- [ ] **Integration with MISP/TheHive** for threat intelligence correlation
-- [ ] **Scheduled scanning** with webhooks for change detection
-- [ ] **Docker container** for easy deployment
-- [ ] **REST API** for programmatic access
-- [ ] **Additional scanners** (testssl.sh, subjack, subfinder)
-- [ ] **Enhanced GraphRAG** with temporal analysis (certificate expiry prediction)
-- [ ] **Custom ML models** for vulnerability prioritization
+### Phase 1: Additional Scanners (Q1 2025)
+- [ ] **masscan** — Ultra-fast port scanning
+- [ ] **httpx** — HTTP probing at scale
+- [ ] **feroxbuster** — Recursive directory brute-forcing
+- [ ] **testssl.sh** — Comprehensive SSL/TLS audit
+
+### Phase 2: Exploitation Framework (Q2 2025)
+- [ ] **Metasploit integration** — Auto-launch exploits for discovered CVEs
+- [ ] **Payload generation** — Context-aware exploit payloads
+- [ ] **Post-exploitation** — Credential harvesting, lateral movement automation
+
+### Phase 3: Stealth & Evasion (Q3 2025)
+- [ ] **Rate limiting** — Adaptive scan speed to avoid detection
+- [ ] **Proxy rotation** — Tor/SOCKS5 support
+- [ ] **IDS evasion** — Fragmentation, timing randomization
+- [ ] **Decoy traffic** — Noise generation to mask real scans
+
+### Phase 4: Collaboration & Reporting (Q4 2025)
+- [ ] **Multi-user support** — Team-based penetration testing
+- [ ] **MISP/TheHive integration** — Threat intelligence correlation
+- [ ] **REST API** — Headless scanning for CI/CD pipelines
+- [ ] **Docker container** — Portable pentest lab
 
 ---
 
 ## Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! Areas of interest:
+- New scanner integrations (sqlmap, dalfox, subfinder)
+- AI prompt engineering for better exploit prioritization
+- GraphRAG enhancements (temporal analysis, credential graphs)
+- Evasion techniques (IDS bypasses, anti-fingerprinting)
 
+**Development Guidelines**:
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes with clear messages
-4. Add tests for new functionality
-5. Ensure all tests pass (`pytest`)
-6. Submit a pull request
+2. Create feature branch (`git checkout -b feature/new-scanner`)
+3. Add tests for new functionality (`pytest tests/`)
+4. Submit pull request with detailed description
+
+---
+
+## Disclaimer
+
+**ShadowStrike is a security research tool for authorized testing only.**
+
+- The authors are not liable for misuse or illegal activity
+- Users are responsible for obtaining proper authorization
+- Violation of computer crime laws may result in prosecution
+- This tool is provided "as-is" without warranty
+
+**USE AT YOUR OWN RISK. ALWAYS FOLLOW RESPONSIBLE DISCLOSURE.**
+
+---
+
+## Credits
+
+- **Original Project**: Shadow-OSINT (passive reconnaissance tool)
+- **Fork Maintainer**: [MateoGargat](https://github.com/MateoGargat)
+- **AI Models**: Groq (Meta Llama), OpenAI (GPT), Anthropic (Claude)
+- **Security Tools**: nmap, nuclei, nikto, gobuster, and the offensive security community
 
 ---
 
 ## License
 
-This project is intended for **authorized security assessments and educational purposes only**.
+**Educational and Authorized Security Assessment Only**
 
-**Legal Notice:**
-- Passive reconnaissance uses public data sources and is generally legal
-- Active scanning directly interacts with target systems and requires explicit authorization
-- Unauthorized security testing may violate computer fraud laws (CFAA, GDPR, etc.)
-- Always obtain written permission before testing infrastructure you do not own
-- The authors assume no liability for misuse of this tool
+This software is provided for:
+- Authorized penetration testing
+- Security research
+- Educational purposes
 
-**Responsible Disclosure:**
-If you discover vulnerabilities using Shadow-OSINT, follow responsible disclosure practices:
-1. Notify the affected organization privately
-2. Allow reasonable time for remediation (90 days typical)
-3. Do not publicly disclose until patched or agreed timeline expires
+Unauthorized use for malicious purposes is strictly prohibited and may violate local and international laws.
+
+---
+
+**ShadowStrike** — *Offense is the best defense.*
