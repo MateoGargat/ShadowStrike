@@ -1,0 +1,5 @@
+/admin (Status: 200) [Size: 1234]
+/login (Status: 301) [Size: 456]
+/api (Status: 403) [Size: 0]
+/robots.txt (Status: 200) [Size: 87]
+/.git (Status: 403) [Size: 0]
